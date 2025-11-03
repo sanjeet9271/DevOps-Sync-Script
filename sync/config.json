@@ -1,0 +1,18 @@
+{
+  "tables": [
+    {
+      "sf_object": "WOD_2__Inventory__c",
+      "soql_query": "SELECT Unique_Id_UPPER__c, WOD_2__Serial_Number__c, twodscp__Part_Number__r.Name, WOD_2__Account__r.twodscp__External_ID__c FROM WOD_2__Inventory__c",
+      "pg_table": "inventory",
+      "field_mapping": {
+        "Unique_Id_UPPER__c": "unique_id",
+        "WOD_2__Serial_Number__c": "serial_number",
+        "twodscp__Part_Number__r.Name": "part_number",
+        "WOD_2__Account__r.twodscp__External_ID__c": "fch_partyid"
+      },
+      "primary_keys": ["unique_id"]
+    }
+  ],
+  "batch_size": 2000
+}
+
