@@ -11,6 +11,22 @@
         "WOD_2__Account__r.twodscp__External_ID__c": "fch_partyid"
       },
       "primary_keys": ["unique_id"]
+    },
+    {
+      "sf_object": "Account",
+      "soql_query": "SELECT Name, AccountNumber, twodscp__External_ID__c, Type, ShippingAddress, ShippingPostalCode, ShippingState, ShippingCity FROM Account WHERE twodscp__External_ID__c != null",
+      "pg_table": "public.account",
+      "field_mapping": {
+        "Name": "Name",
+        "AccountNumber": "Account__Number",
+        "twodscp__External_ID__c": "fch__partyId",
+        "Type": "Account__Type",
+        "ShippingAddress": "Primary__Address",
+        "ShippingCity": "Primary__City",
+        "ShippingState": "Primary__State",
+        "ShippingPostalCode": "Primary__Zip"
+      },
+      "primary_keys": ["fch__partyId"]
     }
   ],
   "batch_size": 2000

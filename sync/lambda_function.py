@@ -3,22 +3,80 @@ AWS Lambda Function - Salesforce to PostgreSQL Sync
 Main entry point - Uses JSON configuration (no code changes needed)
 """
 import json
+import boto3
+from botocore.exceptions import ClientError
 from salesforce_accessor import SalesforceAccessor
 from postgres_accessor import PostgresAccessor
 from data_syncer import DataSyncer, SyncConfig
 
 
-# Salesforce Configuration
-SF_ORG_URL = "YOUR_SALESFORCE_ORG_URL"
-SF_CLIENT_ID = "YOUR_SALESFORCE_CLIENT_ID"
-SF_CLIENT_SECRET = "YOUR_SALESFORCE_CLIENT_SECRET"
+def get_secret(secret_name, region_name="us-west-2"):
+    """
+    Retrieve secret from AWS Secrets Manager
+    
+    Args:
+        secret_name: Name of the secret in Secrets Manager
+        region_name: AWS region
+    
+    Returns:
+        Secret string value
+    """
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+    
+    try:
+        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+        secret_string = get_secret_value_response['SecretString']
+        
+        # Parse JSON if the secret is stored as key-value pair
+        try:
+            secret_dict = json.loads(secret_string)
+            # If it's a dict, extract the value using the secret name as key
+            if isinstance(secret_dict, dict) and secret_name in secret_dict:
+                return secret_dict[secret_name]
+            # Otherwise return the whole dict's first value
+            elif isinstance(secret_dict, dict):
+                return list(secret_dict.values())[0]
+        except json.JSONDecodeError:
+            # Not JSON, return as-is
+            pass
+        
+        return secret_string
+    except ClientError as e:
+        print(f"[!] Error retrieving secret '{secret_name}': {str(e)}")
+        raise e
 
-# PostgreSQL Configuration
-DB_HOST = "YOUR_DB_HOST"
-DB_PORT = 5432
-DB_NAME = "postgres"
-DB_USER = "YOUR_DB_USER"
-DB_PASSWORD = "YOUR_DB_PASSWORD"
+
+def load_secrets():
+    """
+    Load required secrets from AWS Secrets Manager
+    
+    Returns:
+        Dict with all configuration values
+    """
+    print("[*] Loading secrets from AWS Secrets Manager...")
+    
+    # Fetch secrets
+    sf_client_id = get_secret('SEP_SALESFORCE_STG_CLIENT_ID')
+    sf_client_secret = get_secret('SEP_SALESFORCE_STG_CLIENT_SECRET')
+    db_password = get_secret('SEP_POSTGRES_MASTER_PASSWORD')
+    
+    return {
+        # From Secrets Manager
+        'sf_client_id': sf_client_id,
+        'sf_client_secret': sf_client_secret,
+        'db_password': db_password,
+        
+        # Hardcoded (non-sensitive)
+        'sf_org_url': 'https://onetrimblesupport--stg.sandbox.my.salesforce.com',
+        'db_host': 'db-sep-postgre-instance-1.cgj0rqco754z.us-west-2.rds.amazonaws.com',
+        'db_user': 'master',
+        'db_name': 'postgres',
+        'db_port': 5432
+    }
 
 
 def lambda_handler(event, context):
@@ -55,6 +113,10 @@ def lambda_handler(event, context):
         }
     
     try:
+        # Load secrets from AWS Secrets Manager
+        secrets = load_secrets()
+        print("[+] Secrets loaded successfully")
+        
         # Parse configuration
         tables_config = event['tables']
         batch_size = event.get('batch_size', 2000)
@@ -63,10 +125,20 @@ def lambda_handler(event, context):
         
         # Initialize accessors
         print("[*] Initializing Salesforce accessor...")
-        sf_accessor = SalesforceAccessor(SF_ORG_URL, SF_CLIENT_ID, SF_CLIENT_SECRET)
+        sf_accessor = SalesforceAccessor(
+            secrets['sf_org_url'], 
+            secrets['sf_client_id'], 
+            secrets['sf_client_secret']
+        )
         
         print("[*] Initializing PostgreSQL accessor...")
-        pg_accessor = PostgresAccessor(DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD)
+        pg_accessor = PostgresAccessor(
+            secrets['db_host'],
+            secrets['db_port'],
+            secrets['db_name'],
+            secrets['db_user'],
+            secrets['db_password']
+        )
         
         # Connect to PostgreSQL
         if not pg_accessor.connect():

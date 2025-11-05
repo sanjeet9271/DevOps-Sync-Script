@@ -10,6 +10,16 @@ JSON-driven sync system. No code changes needed.
 - Timeout: 300s
 - Memory: 512 MB
 
+## Required AWS Secrets
+
+Create these secrets in AWS Secrets Manager (us-west-2):
+
+- `SEP_SALESFORCE_STG_CLIENT_ID` - Salesforce OAuth Client ID
+- `SEP_SALESFORCE_STG_CLIENT_SECRET` - Salesforce OAuth Client Secret
+- `SEP_POSTGRES_MASTER_PASSWORD` - PostgreSQL master password
+
+**Lambda IAM Role:** Must have `secretsmanager:GetSecretValue` permission
+
 ## Configuration
 
 Pass JSON event to Lambda:
